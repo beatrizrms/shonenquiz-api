@@ -1,0 +1,16 @@
+.git
+.gradle
+.idea
+.kotlin
+build
+out
+bin
+
+*.iml
+*.iws
+*.ipr
+
+Dockerfile
+docker-compose.yml
+HELP.md
+README.md
