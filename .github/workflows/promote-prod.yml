@@ -1,0 +1,22 @@
+name: Criar PR Develop para Homol
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  criar-pull-request:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Criar Pull Request para Produção
+        uses: repo-sync/pull-request@v2
+        with:
+          source_branch: "staging"
+          destination_branch: "main"
+          pr_title: "🚀 [Automático] Sync Homol para Produção"
+          pr_body: "Pull request criado automaticamente após alteração na branch develop. Por favor, revise e aprove para prosseguir com o deploy no ambiente de produção."
+          pr_label: "automerge,producao"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
