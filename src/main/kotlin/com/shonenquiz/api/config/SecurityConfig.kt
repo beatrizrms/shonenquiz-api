@@ -24,7 +24,7 @@ class SecurityConfig(private val jwtAuthFilter: JwtAuthFilter) {
             .cors { it.configurationSource(corsConfigurationSource()) }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
-                it.requestMatchers("/auth/**", "/actuator/health").permitAll()
+                it.requestMatchers("/auth/**", "/animes", "/actuator/health").permitAll()
                 it.anyRequest().authenticated()
             }
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter::class.java)
