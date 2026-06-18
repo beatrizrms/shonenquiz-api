@@ -47,4 +47,6 @@ INSERT INTO animes (id, name, slug, category, is_fixed, active) VALUES
 -- Slice of Life
 (gen_random_uuid(), 'Haikyuu!!',                        'haikyuu',                           'slice_of_life',FALSE, TRUE),
 (gen_random_uuid(), 'Clannad',                          'clannad',                           'slice_of_life',FALSE, TRUE),
-(gen_random_uuid(), 'Slam Dunk',                        'slam-dunk',                         'slice_of_life',FALSE, TRUE);
+(gen_random_uuid(), 'Slam Dunk',                        'slam-dunk',                         'slice_of_life',FALSE, TRUE)
+
+ON CONFLICT (slug) DO NOTHING;

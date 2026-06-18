@@ -17,9 +17,9 @@ data class SaveAvatarRequest(
     @field:NotBlank @field:Size(max = 30) val catName: String,
     @field:NotBlank val breed: String,
     @field:NotBlank val eyeColor: String,
-    @field:NotBlank val expression: String,
+    val expression: String = "normal",
     val accessory: String? = null,
-    val cosplay: String? = null,
+    val background: String? = null,
 )
 
 data class UpdateAnimePreferencesRequest(
@@ -49,7 +49,7 @@ data class AvatarResponse(
     val eyeColor: String,
     val expression: String,
     val accessory: String?,
-    val cosplay: String?,
+    val background: String?,
 )
 
 data class AnimeResponse(
@@ -59,4 +59,30 @@ data class AnimeResponse(
     val category: String,
     val isFixed: Boolean,
     val coverUrl: String?,
+)
+
+data class AbilitySlotResponse(
+    val slotIndex: Int,
+    val setRef: String?,
+    val unlocked: Boolean,
+)
+
+data class EquipAbilitySlotRequest(
+    val setRef: String,
+)
+
+data class UserStatsResponse(
+    val totalSessions: Long,
+    val accuracy: Int,
+    val maxCombo: Int,
+    val totalScore: Long,
+)
+
+data class RecentSessionResponse(
+    val sessionId: java.util.UUID,
+    val mode: String,
+    val status: String,
+    val score: Long,
+    val questionsAnswered: Int,
+    val questionsTotal: Int,
 )

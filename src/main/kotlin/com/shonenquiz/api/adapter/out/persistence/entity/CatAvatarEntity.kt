@@ -25,8 +25,8 @@ class CatAvatarEntity(
     @Column(length = 50)
     var accessory: String? = null,
 
-    @Column(length = 50)
-    var cosplay: String? = null,
+    @Column(name = "background", length = 50)
+    var background: String? = null,
 
     @Column(name = "cat_name", nullable = false, length = 30)
     var catName: String,

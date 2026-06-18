@@ -6,6 +6,7 @@ import com.shonenquiz.api.adapter.out.persistence.repository.UserAuthProviderJpa
 import com.shonenquiz.api.adapter.out.persistence.repository.UserJpaRepository
 import com.shonenquiz.api.domain.model.AuthUser
 import com.shonenquiz.api.domain.model.GoogleUserInfo
+import com.shonenquiz.api.domain.port.out.AbilitySlotPort
 import com.shonenquiz.api.domain.port.out.UserAuthPort
 import org.springframework.stereotype.Component
 import java.util.UUID
@@ -14,6 +15,7 @@ import java.util.UUID
 class UserAuthAdapter(
     private val userRepo: UserJpaRepository,
     private val authProviderRepo: UserAuthProviderJpaRepository,
+    private val abilitySlotPort: AbilitySlotPort,
 ) : UserAuthPort {
 
     override fun findOrCreateUser(googleUserInfo: GoogleUserInfo): AuthUser {
@@ -40,6 +42,8 @@ class UserAuthAdapter(
                 providerUid = googleUserInfo.googleId,
             )
         )
+
+        abilitySlotPort.initSlots(user.id)
 
         return user.toAuthUser(isNew = true)
     }

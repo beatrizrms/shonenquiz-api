@@ -1,9 +1,9 @@
 package com.shonenquiz.api.config
 
 import com.shonenquiz.api.adapter.`in`.rest.filter.JwtAuthFilter
+import jakarta.servlet.http.HttpServletResponse
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
@@ -24,8 +24,13 @@ class SecurityConfig(private val jwtAuthFilter: JwtAuthFilter) {
             .cors { it.configurationSource(corsConfigurationSource()) }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
-                it.requestMatchers("/auth/**", "/animes", "/actuator/health").permitAll()
+                it.requestMatchers("/auth/**", "/animes", "/actuator/**").permitAll()
                 it.anyRequest().authenticated()
+            }
+            .exceptionHandling {
+                it.authenticationEntryPoint { _, response, _ ->
+                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED)
+                }
             }
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter::class.java)
         return http.build()
