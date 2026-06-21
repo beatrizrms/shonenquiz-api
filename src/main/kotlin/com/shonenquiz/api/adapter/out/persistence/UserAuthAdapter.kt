@@ -4,6 +4,7 @@ import com.shonenquiz.api.adapter.out.persistence.entity.UserAuthProviderEntity
 import com.shonenquiz.api.adapter.out.persistence.entity.UserEntity
 import com.shonenquiz.api.adapter.out.persistence.repository.UserAuthProviderJpaRepository
 import com.shonenquiz.api.adapter.out.persistence.repository.UserJpaRepository
+import com.shonenquiz.api.domain.model.AppleUserInfo
 import com.shonenquiz.api.domain.model.AuthUser
 import com.shonenquiz.api.domain.model.GoogleUserInfo
 import com.shonenquiz.api.domain.port.out.AbilitySlotPort
@@ -48,6 +49,33 @@ class UserAuthAdapter(
         return user.toAuthUser(isNew = true)
     }
 
+    override fun findOrCreateUserFromApple(appleUserInfo: AppleUserInfo): AuthUser {
+        val existing = authProviderRepo.findByProviderAndProviderUid("apple", appleUserInfo.appleId)
+
+        if (existing != null) {
+            val user = userRepo.findById(existing.userId).orElseThrow()
+            return user.toAuthUser(isNew = false)
+        }
+
+        // A Apple só envia email no primeiro login — usa fallback se vier nulo
+        val email = appleUserInfo.email ?: "${appleUserInfo.appleId}@privaterelay.appleid.com"
+        val user = userRepo.findByEmail(email) ?: run {
+            userRepo.save(UserEntity(username = generateAppleUsername(), email = email))
+        }
+
+        authProviderRepo.save(
+            UserAuthProviderEntity(
+                userId = user.id,
+                provider = "apple",
+                providerUid = appleUserInfo.appleId,
+            )
+        )
+
+        abilitySlotPort.initSlots(user.id)
+
+        return user.toAuthUser(isNew = true)
+    }
+
     private fun UserEntity.toAuthUser(isNew: Boolean = false) =
         AuthUser(id = id, email = email, username = username, isNewUser = isNew)
 
@@ -60,4 +88,6 @@ class UserAuthAdapter(
             ?: "user"
         return "${base}_${(1000..9999).random()}"
     }
+
+    private fun generateAppleUsername(): String = "user_${(1000..9999).random()}"
 }

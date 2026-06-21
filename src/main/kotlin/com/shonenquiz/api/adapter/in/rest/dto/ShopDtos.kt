@@ -32,9 +32,10 @@ data class AbilitySetResponse(
     val totalCount: Int,
     val abilityName: String?,
     val abilityDescription: String?,
-    val abilityType: String?,     // chave de efeito: sharingan | eye_of_zeno | gear_second | etc.
-    val abilityEmoji: String?,    // emoji da habilidade (do item ability)
-    val abilityCategory: String?, // time | hint | question
+    val abilityType: String?,       // chave de efeito: sharingan | eye_of_zeno | gear_second | etc.
+    val abilityEmoji: String?,      // emoji da habilidade (do item ability)
+    val abilityCategory: String?,   // time | hint | question
+    val abilityCooldown: Int,       // perguntas até reativar
 )
 
 data class OwnedItemResponse(
@@ -52,6 +53,4 @@ data class PurchaseResponse(
     val itemRef: String,
     val acquiredAt: OffsetDateTime,
     val message: String,
-    val newCoins: Int? = null,
-    val newGems: Int? = null,
 )

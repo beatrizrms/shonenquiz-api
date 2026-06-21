@@ -97,16 +97,10 @@ class UserService(
 
     @Transactional
     override fun updateAnimePreferences(userId: UUID, animeIds: List<UUID>) {
-        val fixed = animePort.findFixed()
-        val fixedIds = fixed.map { it.id }.toSet()
-
-        val nonFixedSelected = animeIds.filter { it !in fixedIds }
-        if (nonFixedSelected.size < 5) {
-            throw BusinessException("Selecione pelo menos 5 animes além dos 3 obrigatórios")
+        if (animeIds.size < 3) {
+            throw BusinessException("Selecione pelo menos 3 animes")
         }
-
-        val allIds = (fixedIds + animeIds).distinct()
-        animePort.replacePreferences(userId, allIds)
+        animePort.replacePreferences(userId, animeIds.distinct())
     }
 
     override fun getEquippedItems(userId: UUID): List<String> =

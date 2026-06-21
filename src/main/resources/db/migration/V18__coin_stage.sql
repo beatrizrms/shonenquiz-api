@@ -1,1 +1,0 @@
-ALTER TABLE game_sessions ADD COLUMN coin_stage INT NOT NULL DEFAULT 0;

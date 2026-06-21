@@ -24,4 +24,6 @@ interface SeasonRankingJpaRepository : JpaRepository<SeasonRankingEntity, UUID> 
     fun findTopBySeasonIdAndLeague(seasonId: UUID, league: String, limit: Int): List<SeasonRankingEntity>
 
     fun findBySeasonIdAndUserId(seasonId: UUID, userId: UUID): SeasonRankingEntity?
+
+    fun findBySeasonIdAndUserIdIn(seasonId: UUID, userIds: List<UUID>): List<SeasonRankingEntity>
 }

@@ -43,6 +43,9 @@ class UserEntity(
     @Column(name = "league_points", nullable = false)
     var leaguePoints: Int = 0,
 
+    @Column(name = "friend_code", unique = true, length = 8)
+    var friendCode: String? = null,
+
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: OffsetDateTime = OffsetDateTime.now(),
 

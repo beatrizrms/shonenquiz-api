@@ -28,4 +28,5 @@ class ShopItemEntity(
     @Column(name = "sort_order", nullable = false) val sortOrder: Int = 0,
     @Column(name = "ability_item_id") val abilityItemId: UUID? = null,
     @Column(name = "ability_category", length = 20) val abilityCategory: String? = null,
+    @Column(name = "cooldown_questions", nullable = false) val cooldownQuestions: Int = 3,
 )

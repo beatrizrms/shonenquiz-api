@@ -57,7 +57,7 @@ class ShopPersistenceAdapter(
         rewardCoins = rewardCoins, rewardGems = rewardGems,
         isRotating = isRotating, availableFrom = availableFrom, availableUntil = availableUntil,
         active = active, sortOrder = sortOrder, abilityItemId = abilityItemId,
-        abilityCategory = abilityCategory,
+        abilityCategory = abilityCategory, cooldownQuestions = cooldownQuestions,
     )
 
     private fun UserOwnedItemEntity.toDomain() = UserOwnedItem(

@@ -1,1 +1,0 @@
-ALTER TABLE game_sessions ADD COLUMN IF NOT EXISTS bonus_lives INT NOT NULL DEFAULT 0;

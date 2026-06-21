@@ -12,6 +12,10 @@ class QuestionEntity(
     @Column(name = "anime_id", nullable = false)
     val animeId: UUID,
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "anime_id", insertable = false, updatable = false)
+    val anime: AnimeEntity? = null,
+
     @Column(nullable = false, length = 20)
     val type: String = "text",
 

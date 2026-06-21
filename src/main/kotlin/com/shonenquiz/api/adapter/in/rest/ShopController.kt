@@ -53,6 +53,7 @@ class ShopController(private val shopUseCase: ShopUseCase) {
                     ?.replace("-", "_"),
                 abilityEmoji = abilityItem?.emoji,
                 abilityCategory = abilityItem?.abilityCategory,
+                abilityCooldown = abilityItem?.cooldownQuestions ?: 3,
             )
         }
         return ResponseEntity.ok(response)

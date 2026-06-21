@@ -12,18 +12,33 @@ import java.util.UUID
 @RequestMapping("/game")
 class GameController(private val gameUseCase: GameUseCase) {
 
+    @GetMapping("/modes")
+    fun getGameModes(): ResponseEntity<List<GameModeConfigResponse>> =
+        ResponseEntity.ok(gameUseCase.getGameModes().map {
+            GameModeConfigResponse(
+                mode = it.mode,
+                displayName = it.displayName,
+                description = it.description,
+                questionsTotal = it.questionsTotal,
+                timerSeconds = it.timerSeconds,
+                lives = it.lives,
+            )
+        })
+
     @PostMapping("/sessions")
     fun startSession(
         @AuthenticationPrincipal userId: UUID?,
         @RequestBody body: StartSessionRequest,
     ): ResponseEntity<StartSessionResponse> {
         val id = userId ?: return ResponseEntity.status(401).build()
-        val (sessionId, firstQuestion) = gameUseCase.startSession(id, body.mode)
+        val result = gameUseCase.startSession(id, body.mode)
         return ResponseEntity.ok(
             StartSessionResponse(
-                sessionId = sessionId,
-                questionsTotal = 15,
-                firstQuestion = firstQuestion.toResponse(),
+                sessionId = result.sessionId,
+                questionsTotal = result.questionsTotal,
+                timerSeconds = result.timerSeconds,
+                lives = result.lives,
+                firstQuestion = result.firstQuestion.toResponse(),
             )
         )
     }
@@ -53,6 +68,8 @@ class GameController(private val gameUseCase: GameUseCase) {
                 correctOptionId = result.correctOptionId,
                 pointsEarned = result.pointsEarned,
                 currentCombo = result.currentCombo,
+                maxCombo = result.maxCombo,
+                correctCount = result.correctCount,
                 livesRemaining = result.livesRemaining,
                 sessionStatus = result.sessionStatus,
                 score = result.score,
@@ -62,6 +79,18 @@ class GameController(private val gameUseCase: GameUseCase) {
                 nekocoinsEarned = result.nekocoinsEarned,
                 coinStage = result.coinStage,
                 nextQuestion = result.nextQuestion?.toResponse(),
+                upcomingBoss = result.upcomingBoss?.let {
+                    BossEncounterResponse(
+                        bossPowerId = it.bossPowerId,
+                        villainName = it.villainName,
+                        powerName = it.powerName,
+                        raridade = it.raridade,
+                        effectType = it.effectType,
+                        effectDuration = it.effectDuration,
+                        description = it.description,
+                    )
+                },
+                activeBossEffect = result.activeBossEffect,
             )
         )
     }
@@ -82,8 +111,19 @@ class GameController(private val gameUseCase: GameUseCase) {
                 newQuestion = result.newQuestion?.toResponse(),
                 secondsAdded = result.secondsAdded,
                 freezeSeconds = result.freezeSeconds,
+                multiplier = result.multiplier,
             )
         )
+    }
+
+    @PostMapping("/sessions/{sessionId}/finish")
+    fun finishSession(
+        @AuthenticationPrincipal userId: UUID?,
+        @PathVariable sessionId: UUID,
+    ): ResponseEntity<Void> {
+        val id = userId ?: return ResponseEntity.status(401).build()
+        gameUseCase.abandonSession(id, sessionId)
+        return ResponseEntity.noContent().build()
     }
 
     @GetMapping("/sessions/{sessionId}/summary")
@@ -119,6 +159,7 @@ class GameController(private val gameUseCase: GameUseCase) {
 
     private fun Question.toResponse() = QuestionResponse(
         id = id,
+        animeName = animeName,
         type = type,
         difficulty = difficulty,
         questionText = questionText,

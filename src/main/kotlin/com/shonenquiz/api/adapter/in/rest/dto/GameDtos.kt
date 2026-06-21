@@ -2,6 +2,16 @@ package com.shonenquiz.api.adapter.`in`.rest.dto
 
 import java.util.UUID
 
+data class BossEncounterResponse(
+    val bossPowerId: UUID,
+    val villainName: String,
+    val powerName: String,
+    val raridade: String,
+    val effectType: String,
+    val effectDuration: Int,
+    val description: String,
+)
+
 data class StartSessionRequest(
     val mode: String = "classic",
 )
@@ -14,6 +24,7 @@ data class QuestionOptionResponse(
 
 data class QuestionResponse(
     val id: UUID,
+    val animeName: String,
     val type: String,
     val difficulty: String,
     val questionText: String,
@@ -25,7 +36,18 @@ data class QuestionResponse(
 data class StartSessionResponse(
     val sessionId: UUID,
     val questionsTotal: Int,
+    val timerSeconds: Int,
+    val lives: Int,
     val firstQuestion: QuestionResponse,
+)
+
+data class GameModeConfigResponse(
+    val mode: String,
+    val displayName: String,
+    val description: String?,
+    val questionsTotal: Int,
+    val timerSeconds: Int,
+    val lives: Int,
 )
 
 data class SubmitAnswerRequest(
@@ -47,6 +69,7 @@ data class HelpResultResponse(
     val newQuestion: QuestionResponse? = null,
     val secondsAdded: Int = 0,
     val freezeSeconds: Int? = null,
+    val multiplier: Double? = null,
 )
 
 data class AnswerResultResponse(
@@ -54,6 +77,8 @@ data class AnswerResultResponse(
     val correctOptionId: UUID,
     val pointsEarned: Long,
     val currentCombo: Int,
+    val maxCombo: Int,
+    val correctCount: Int,
     val livesRemaining: Int,
     val sessionStatus: String,
     val score: Long,
@@ -63,6 +88,8 @@ data class AnswerResultResponse(
     val nekocoinsEarned: Int,
     val coinStage: Int,
     val nextQuestion: QuestionResponse?,
+    val upcomingBoss: BossEncounterResponse? = null,
+    val activeBossEffect: String? = null,
 )
 
 data class SessionAchievementResponse(

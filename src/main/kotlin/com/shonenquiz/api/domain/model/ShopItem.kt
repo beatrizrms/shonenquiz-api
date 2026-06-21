@@ -24,4 +24,5 @@ data class ShopItem(
     val sortOrder: Int,
     val abilityItemId: UUID? = null,
     val abilityCategory: String? = null,  // time | hint | question
+    val cooldownQuestions: Int = 3,
 )

@@ -28,11 +28,19 @@ spring:
 server:
   address: 0.0.0.0
   port: ${PORT:8080}
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
 
 jwt:
   secret: ${JWT_SECRET}
   access-token-expiration: ${JWT_ACCESS_EXPIRATION:86400}
   refresh-token-expiration: 2592000
+
+apple:
+  bundle-id: ${APPLE_BUNDLE_ID:com.shonenquiz.app}
 
 management:
   endpoints:
