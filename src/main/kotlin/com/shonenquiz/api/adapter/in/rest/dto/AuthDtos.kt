@@ -6,6 +6,10 @@ data class GoogleLoginRequest(
     @field:NotBlank val idToken: String,
 )
 
+data class AppleLoginRequest(
+    @field:NotBlank val identityToken: String,
+)
+
 data class RefreshTokenRequest(
     @field:NotBlank val refreshToken: String,
 )
