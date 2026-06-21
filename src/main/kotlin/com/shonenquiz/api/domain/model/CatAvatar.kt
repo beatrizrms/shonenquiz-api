@@ -9,6 +9,6 @@ data class CatAvatar(
     val eyeColor: String,
     val expression: String,
     val accessory: String?,
-    val cosplay: String?,
+    val background: String?,
     val catName: String,
 )

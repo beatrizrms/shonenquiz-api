@@ -3,6 +3,7 @@ package com.shonenquiz.api.domain.service
 import com.shonenquiz.api.config.JwtUtil
 import com.shonenquiz.api.domain.model.AuthTokens
 import com.shonenquiz.api.domain.port.`in`.AuthUseCase
+import com.shonenquiz.api.domain.port.out.AppleAuthPort
 import com.shonenquiz.api.domain.port.out.GoogleAuthPort
 import com.shonenquiz.api.domain.port.out.TokenBlacklistPort
 import com.shonenquiz.api.domain.port.out.UserAuthPort
@@ -15,6 +16,7 @@ import java.util.Base64
 @Service
 class AuthService(
     private val googleAuthPort: GoogleAuthPort,
+    private val appleAuthPort: AppleAuthPort,
     private val userAuthPort: UserAuthPort,
     private val tokenBlacklistPort: TokenBlacklistPort,
     private val jwtUtil: JwtUtil,
@@ -25,6 +27,12 @@ class AuthService(
     override fun loginWithGoogle(idToken: String): AuthTokens {
         val googleUser = googleAuthPort.verifyIdToken(idToken)
         val user = userAuthPort.findOrCreateUser(googleUser)
+        return issueTokens(user.id.toString())
+    }
+
+    override fun loginWithApple(identityToken: String): AuthTokens {
+        val appleUser = appleAuthPort.verifyIdentityToken(identityToken)
+        val user = userAuthPort.findOrCreateUserFromApple(appleUser)
         return issueTokens(user.id.toString())
     }
 

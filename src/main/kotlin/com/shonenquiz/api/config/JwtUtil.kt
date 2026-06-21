@@ -3,6 +3,7 @@ package com.shonenquiz.api.config
 import io.jsonwebtoken.JwtException
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.security.Keys
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.util.Date
@@ -14,6 +15,7 @@ class JwtUtil(
     @Value("\${jwt.access-token-expiration}") private val accessExpiration: Long,
     @Value("\${jwt.refresh-token-expiration}") private val refreshExpiration: Long,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
     private val signingKey: SecretKey = Keys.hmacShaKeyFor(secret.toByteArray())
 
     fun generateAccessToken(userId: String): String = buildToken(userId, "access", accessExpiration)
@@ -27,7 +29,8 @@ class JwtUtil(
             .parseSignedClaims(token)
             .payload
             .subject
-    }.getOrNull()
+    }.onFailure { log.warn("Falha ao validar JWT: ${it.javaClass.simpleName} - ${it.message}") }
+        .getOrNull()
 
     fun getExpirationSeconds(token: String): Long = runCatching {
         val expiration = Jwts.parser()

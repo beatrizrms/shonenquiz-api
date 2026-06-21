@@ -1,5 +1,6 @@
 package com.shonenquiz.api.exception
 
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
@@ -9,6 +10,8 @@ import java.time.OffsetDateTime
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
+
+    private val log = LoggerFactory.getLogger(javaClass)
 
     @ExceptionHandler(InvalidTokenException::class)
     fun handleInvalidToken(ex: InvalidTokenException) =
@@ -30,8 +33,10 @@ class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception::class)
-    fun handleGeneric(ex: Exception) =
-        errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno do servidor")
+    fun handleGeneric(ex: Exception): ResponseEntity<ErrorResponse> {
+        log.error("Erro interno não tratado: ${ex.message}", ex)
+        return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno do servidor")
+    }
 
     private fun errorResponse(status: HttpStatus, message: String) =
         ResponseEntity.status(status).body(ErrorResponse(status.value(), message))

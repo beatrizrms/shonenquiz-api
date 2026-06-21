@@ -24,7 +24,7 @@ class AvatarPersistenceAdapter(private val repo: CatAvatarJpaRepository) : Avata
                 eyeColor = avatar.eyeColor
                 expression = avatar.expression
                 accessory = avatar.accessory
-                cosplay = avatar.cosplay
+                background = avatar.background
                 updatedAt = OffsetDateTime.now()
             }
         } else {
@@ -36,7 +36,7 @@ class AvatarPersistenceAdapter(private val repo: CatAvatarJpaRepository) : Avata
                 eyeColor = avatar.eyeColor,
                 expression = avatar.expression,
                 accessory = avatar.accessory,
-                cosplay = avatar.cosplay,
+                background = avatar.background,
             )
         }
         return repo.save(entity).toDomain()
@@ -44,6 +44,6 @@ class AvatarPersistenceAdapter(private val repo: CatAvatarJpaRepository) : Avata
 
     private fun CatAvatarEntity.toDomain() = CatAvatar(
         id = id, userId = userId!!, catName = catName, breed = breed,
-        eyeColor = eyeColor, expression = expression, accessory = accessory, cosplay = cosplay,
+        eyeColor = eyeColor, expression = expression, accessory = accessory, background = background,
     )
 }
