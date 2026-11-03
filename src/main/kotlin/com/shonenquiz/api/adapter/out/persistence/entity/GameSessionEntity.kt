@@ -76,6 +76,12 @@ class GameSessionEntity(
     @Column(name = "active_boss_effect", columnDefinition = "TEXT")
     var activeBossEffect: String? = null,
 
+    @Column(name = "leveled_up", nullable = false)
+    var leveledUp: Boolean = false,
+
+    @Column(name = "new_level", nullable = false)
+    var newLevel: Short = 1,
+
     @Column(name = "started_at", nullable = false, updatable = false)
     val startedAt: OffsetDateTime = OffsetDateTime.now(),
 

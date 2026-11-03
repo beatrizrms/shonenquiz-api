@@ -17,4 +17,6 @@ data class User(
     val leaguePoints: Int,
     val avatarCatId: UUID?,
     val createdAt: OffsetDateTime,
+    val dailyLoginClaimed: Boolean = false,
+    val dailyWinClaimed: Boolean = false,
 )

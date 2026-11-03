@@ -8,6 +8,7 @@ interface ShopPort {
     fun findActiveItems(category: String?): List<ShopItem>
     fun findFeatured(): List<ShopItem>
     fun findByItemRef(itemRef: String): ShopItem?
+    fun findAccessoriesBySetRef(setRef: String): List<ShopItem>
     fun findOwnedByUser(userId: UUID): List<UserOwnedItem>
     fun isOwned(userId: UUID, itemRef: String): Boolean
     fun saveOwned(owned: UserOwnedItem): UserOwnedItem

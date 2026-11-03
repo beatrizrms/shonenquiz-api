@@ -16,8 +16,8 @@ class ShopItemEntity(
     @Column(name = "item_ref", nullable = false, unique = true, length = 100) val itemRef: String,
     @Column(name = "set_ref", length = 100) val setRef: String? = null,
     @Column(length = 10) val emoji: String? = null,
-    @Column(name = "price_coins") val priceCoins: Int? = null,
-    @Column(name = "price_gems") val priceGems: Int? = null,
+    @Column(name = "price") val price: Int? = null,
+    @Column(name = "unity", length = 10) val unity: String? = null,
     @Column(name = "price_brl", precision = 8, scale = 2) val priceBrl: BigDecimal? = null,
     @Column(name = "reward_coins") val rewardCoins: Int? = null,
     @Column(name = "reward_gems") val rewardGems: Int? = null,
@@ -29,4 +29,5 @@ class ShopItemEntity(
     @Column(name = "ability_item_id") val abilityItemId: UUID? = null,
     @Column(name = "ability_category", length = 20) val abilityCategory: String? = null,
     @Column(name = "cooldown_questions", nullable = false) val cooldownQuestions: Int = 3,
+    @Column(name = "rarity", length = 10) val rarity: String? = null,
 )

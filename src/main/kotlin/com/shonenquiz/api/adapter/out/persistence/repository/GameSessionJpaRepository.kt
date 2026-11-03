@@ -30,6 +30,13 @@ interface GameSessionJpaRepository : JpaRepository<GameSessionEntity, UUID> {
     @Query("SELECT s FROM GameSessionEntity s WHERE s.userId = :userId AND s.status IN ('won', 'lost')")
     fun findFinishedByUserId(userId: UUID): List<GameSessionEntity>
 
+    @Query("""
+        SELECT COUNT(s) > 0 FROM GameSessionEntity s
+        WHERE s.userId = :userId AND s.mode = 'daily' AND s.status = 'won'
+          AND s.startedAt >= :todayStart
+    """)
+    fun hasDailyWonToday(userId: UUID, todayStart: OffsetDateTime): Boolean
+
     @Modifying
     @Query("""
         UPDATE GameSessionEntity s

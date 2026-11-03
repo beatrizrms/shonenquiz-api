@@ -22,6 +22,7 @@ class GameController(private val gameUseCase: GameUseCase) {
                 questionsTotal = it.questionsTotal,
                 timerSeconds = it.timerSeconds,
                 lives = it.lives,
+                sessionTimerSeconds = it.sessionTimerSeconds,
             )
         })
 
@@ -39,6 +40,7 @@ class GameController(private val gameUseCase: GameUseCase) {
                 timerSeconds = result.timerSeconds,
                 lives = result.lives,
                 firstQuestion = result.firstQuestion.toResponse(),
+                sessionTimerSeconds = result.sessionTimerSeconds,
             )
         )
     }
@@ -61,7 +63,7 @@ class GameController(private val gameUseCase: GameUseCase) {
         @RequestBody body: SubmitAnswerRequest,
     ): ResponseEntity<AnswerResultResponse> {
         val id = userId ?: return ResponseEntity.status(401).build()
-        val result = gameUseCase.submitAnswer(id, sessionId, body.questionId, body.selectedOptionId, body.timeTakenMs, body.helpUsed)
+        val result = gameUseCase.submitAnswer(id, sessionId, body.questionId, body.selectedOptionId, body.timeTakenMs, body.helpUsed, body.selectedOrder)
         return ResponseEntity.ok(
             AnswerResultResponse(
                 isCorrect = result.isCorrect,
@@ -91,6 +93,7 @@ class GameController(private val gameUseCase: GameUseCase) {
                     )
                 },
                 activeBossEffect = result.activeBossEffect,
+                dailyWinGemEarned = result.dailyWinGemEarned,
             )
         )
     }
@@ -120,10 +123,34 @@ class GameController(private val gameUseCase: GameUseCase) {
     fun finishSession(
         @AuthenticationPrincipal userId: UUID?,
         @PathVariable sessionId: UUID,
-    ): ResponseEntity<Void> {
+    ): ResponseEntity<SessionSummaryResponse> {
         val id = userId ?: return ResponseEntity.status(401).build()
-        gameUseCase.abandonSession(id, sessionId)
-        return ResponseEntity.noContent().build()
+        val s = gameUseCase.finishSession(id, sessionId)
+        return ResponseEntity.ok(
+            SessionSummaryResponse(
+                sessionId = s.sessionId,
+                status = s.status,
+                score = s.score,
+                questionsTotal = s.questionsTotal,
+                correctCount = s.correctCount,
+                maxCombo = s.maxCombo,
+                xpEarned = s.xpEarned,
+                nekocoinsEarned = s.nekocoinsEarned,
+                achievements = s.achievements.map { a ->
+                    SessionAchievementResponse(
+                        ruleId = a.ruleId,
+                        label = a.label,
+                        bonusMetric = a.bonusMetric,
+                        effectType = a.effectType,
+                        bonusApplied = a.bonusApplied,
+                        questionNumber = a.questionNumber,
+                    )
+                },
+                leveledUp = s.leveledUp,
+                oldLevel = s.oldLevel,
+                newLevel = s.newLevel,
+            )
+        )
     }
 
     @GetMapping("/sessions/{sessionId}/summary")
@@ -153,6 +180,34 @@ class GameController(private val gameUseCase: GameUseCase) {
                         questionNumber = a.questionNumber,
                     )
                 },
+                leveledUp = s.leveledUp,
+                oldLevel = s.oldLevel,
+                newLevel = s.newLevel,
+            )
+        )
+    }
+
+    @GetMapping("/daily-challenge")
+    fun dailyChallenge(
+        @AuthenticationPrincipal userId: UUID?,
+    ): ResponseEntity<DailyChallengeResponse> {
+        val id = userId ?: return ResponseEntity.status(401).build()
+        val s = gameUseCase.getDailyChallenge(id)
+        return ResponseEntity.ok(
+            DailyChallengeResponse(
+                challengeId = s.challengeId,
+                name = s.name,
+                description = s.description,
+                questionsCount = s.questionsCount,
+                livesCount = s.livesCount,
+                noHelps = s.noHelps,
+                difficultyFilter = s.difficultyFilter,
+                singleAnime = s.singleAnime,
+                timerSeconds = s.timerSeconds,
+                requireCombo = s.requireCombo,
+                rewardCoins = s.rewardCoins,
+                attempted = s.attempted,
+                completed = s.completed,
             )
         )
     }

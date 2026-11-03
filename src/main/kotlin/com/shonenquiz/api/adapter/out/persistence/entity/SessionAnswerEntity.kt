@@ -30,6 +30,10 @@ class SessionAnswerEntity(
     @Column(name = "help_used")
     val helpUsed: String? = null,
 
+    // Para perguntas do tipo chronological: IDs das opções na ordem escolhida, separados por vírgula
+    @Column(name = "selected_order")
+    val selectedOrder: String? = null,
+
     @Column(name = "answered_at", nullable = false, updatable = false)
     val answeredAt: OffsetDateTime = OffsetDateTime.now(),
 )

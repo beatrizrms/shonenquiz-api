@@ -28,6 +28,7 @@ data class GameModeConfigModel(
     val questionsTotal: Int,
     val timerSeconds: Int,
     val lives: Int,
+    val sessionTimerSeconds: Int? = null,
 )
 
 data class StartSessionResult(
@@ -36,6 +37,7 @@ data class StartSessionResult(
     val questionsTotal: Int,
     val timerSeconds: Int,
     val lives: Int,
+    val sessionTimerSeconds: Int? = null,
 )
 
 data class AnswerResult(
@@ -56,6 +58,7 @@ data class AnswerResult(
     val coinStage: Int,
     val upcomingBoss: BossEncounter? = null,
     val activeBossEffect: String? = null,
+    val dailyWinGemEarned: Boolean = false,
 )
 
 data class SessionAchievement(
@@ -93,6 +96,23 @@ data class BossEncounter(
     val description: String,
 )
 
+data class DailyChallengeStatus(
+    val challengeId: java.util.UUID,
+    val name: String,
+    val description: String,
+    val questionsCount: Int,
+    val livesCount: Int,
+    val noHelps: Boolean,
+    val difficultyFilter: String,
+    val singleAnime: Boolean,
+    val timerSeconds: Int,
+    val requireCombo: Int?,
+    val rewardCoins: Int,
+    // Status do jogador hoje
+    val attempted: Boolean,   // tentou (pode ter completado ou falhado)
+    val completed: Boolean,   // completou com sucesso
+)
+
 data class HelpResult(
     val effect: String,                              // eliminate_options | reveal_correct | add_seconds | freeze_timer | freeze_timer_seconds | swap_question | skip_question | extra_life | reveal_hint | shield | multiply_points | revert_wrong | no_op
     val eliminatedOptionIds: List<UUID> = emptyList(),
@@ -113,4 +133,7 @@ data class SessionSummary(
     val xpEarned: Int,
     val nekocoinsEarned: Int,
     val achievements: List<SessionAchievement> = emptyList(),
+    val leveledUp: Boolean = false,
+    val oldLevel: Int = 1,
+    val newLevel: Int = 1,
 )

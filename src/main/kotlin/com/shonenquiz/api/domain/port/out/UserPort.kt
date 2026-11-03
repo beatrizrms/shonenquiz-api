@@ -12,4 +12,7 @@ interface UserPort {
     fun deductGems(userId: UUID, amount: Int)
     fun addCoins(userId: UUID, amount: Int)
     fun addGems(userId: UUID, amount: Int)
+    fun deductLives(userId: UUID, amount: Int)
+    fun regenLivesIfReady(userId: UUID)
+    fun recoverLives(userId: UUID)
 }
