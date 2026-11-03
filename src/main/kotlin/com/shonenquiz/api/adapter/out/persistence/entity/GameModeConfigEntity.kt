@@ -20,6 +20,7 @@ data class GameModeConfigEntity(
     @Column(name = "base_points", nullable = false) val basePoints: Int = 5,
     @Column(name = "max_speed_multiplier", nullable = false) val maxSpeedMultiplier: Double = 3.0,
     @Column(name = "question_time_limit_ms", nullable = false) val questionTimeLimitMs: Long = 30_000L,
+    @Column(name = "session_timer_seconds") val sessionTimerSeconds: Int? = null,
     @Column(name = "created_at", nullable = false) val createdAt: OffsetDateTime = OffsetDateTime.now(),
 ) {
     fun toModel() = GameModeConfigModel(
@@ -29,5 +30,6 @@ data class GameModeConfigEntity(
         questionsTotal = questionsTotal,
         timerSeconds = timerSeconds,
         lives = lives,
+        sessionTimerSeconds = sessionTimerSeconds,
     )
 }

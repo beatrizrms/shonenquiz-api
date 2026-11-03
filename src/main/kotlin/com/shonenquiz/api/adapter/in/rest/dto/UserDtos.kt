@@ -6,6 +6,11 @@ import jakarta.validation.constraints.Size
 import java.time.OffsetDateTime
 import java.util.UUID
 
+data class DailyLoginResponse(
+    val claimed: Boolean,
+    val nekocoinsClaimed: Int,
+)
+
 data class UpdateUsernameRequest(
     @field:NotBlank
     @field:Size(min = 3, max = 30)
@@ -32,6 +37,7 @@ data class UserProfileResponse(
     val email: String,
     val level: Short,
     val xp: Int,
+    val xpToNextLevel: Int,
     val nekocoins: Int,
     val gems: Int,
     val lives: Short,
@@ -40,6 +46,8 @@ data class UserProfileResponse(
     val leaguePoints: Int,
     val avatarCatId: UUID?,
     val createdAt: OffsetDateTime,
+    val dailyLoginClaimed: Boolean = false,
+    val dailyWinClaimed: Boolean = false,
 )
 
 data class AvatarResponse(
@@ -85,4 +93,12 @@ data class RecentSessionResponse(
     val score: Long,
     val questionsAnswered: Int,
     val questionsTotal: Int,
+)
+
+data class AchievementResponse(
+    val achievementId: String,
+    val label: String,
+    val emoji: String,
+    val unlocked: Boolean,
+    val unlockedAt: java.time.OffsetDateTime?,
 )

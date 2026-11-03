@@ -12,8 +12,8 @@ data class ShopItem(
     val itemRef: String,          // slug único do item
     val setRef: String?,          // ref da ability_set à qual este acessório pertence (nullable)
     val emoji: String?,
-    val priceCoins: Int?,
-    val priceGems: Int?,
+    val price: Int?,
+    val unity: String?,          // coin | gem
     val priceBrl: BigDecimal?,
     val rewardCoins: Int?,         // para coin_pack: quantidade creditada ao comprar
     val rewardGems: Int?,          // para gem_pack: quantidade creditada ao comprar
@@ -25,4 +25,5 @@ data class ShopItem(
     val abilityItemId: UUID? = null,
     val abilityCategory: String? = null,  // time | hint | question
     val cooldownQuestions: Int = 3,
+    val rarity: String? = null,           // comum | raro | epico | lendario
 )

@@ -32,6 +32,42 @@ interface QuestionJpaRepository : JpaRepository<QuestionEntity, UUID> {
     fun findRandomIdsByDifficultyExcluding(userId: UUID, difficulty: String, excludedIds: Collection<UUID>, pageable: Pageable): List<UUID>
 
     @Query("""
+        SELECT q.id FROM QuestionEntity q
+        WHERE q.active = TRUE
+          AND q.difficulty = :difficulty
+          AND q.animeId = :animeId
+        ORDER BY FUNCTION('RANDOM')
+    """)
+    fun findRandomIdsByDifficultyAndAnime(animeId: UUID, difficulty: String, pageable: Pageable): List<UUID>
+
+    @Query("""
+        SELECT q.id FROM QuestionEntity q
+        WHERE q.active = TRUE
+          AND q.difficulty IN :difficulties
+          AND q.animeId IN (
+              SELECT uap.id.animeId FROM UserAnimePreferenceEntity uap WHERE uap.id.userId = :userId
+          )
+        ORDER BY FUNCTION('RANDOM')
+    """)
+    fun findRandomIdsByDifficulties(userId: UUID, difficulties: List<String>, pageable: Pageable): List<UUID>
+
+    @Query("""
+        SELECT q.id FROM QuestionEntity q
+        WHERE q.active = TRUE
+          AND q.animeId = :animeId
+        ORDER BY FUNCTION('RANDOM')
+    """)
+    fun findRandomIdsByAnime(animeId: UUID, pageable: Pageable): List<UUID>
+
+    @Query("""
+        SELECT q.id FROM QuestionEntity q
+        WHERE q.active = TRUE
+          AND q.difficulty = :difficulty
+        ORDER BY FUNCTION('RANDOM')
+    """)
+    fun findRandomIdsByDifficultyAny(difficulty: String, pageable: Pageable): List<UUID>
+
+    @Query("""
         SELECT DISTINCT q FROM QuestionEntity q
         LEFT JOIN FETCH q.options
         LEFT JOIN FETCH q.anime

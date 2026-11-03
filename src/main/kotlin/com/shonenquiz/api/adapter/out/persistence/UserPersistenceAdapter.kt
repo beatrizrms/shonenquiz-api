@@ -7,7 +7,10 @@ import com.shonenquiz.api.domain.port.out.UserPort
 import com.shonenquiz.api.exception.BusinessException
 import com.shonenquiz.api.exception.ResourceNotFoundException
 import org.springframework.stereotype.Component
+import java.time.LocalDate
 import java.time.OffsetDateTime
+import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 @Component
@@ -51,9 +54,27 @@ class UserPersistenceAdapter(private val repo: UserJpaRepository) : UserPort {
         repo.addGems(userId, amount)
     }
 
-    private fun UserEntity.toDomain() = User(
-        id = id, username = username, email = email, level = level, xp = xp,
-        nekocoins = nekocoins, gems = gems, lives = lives, livesLastRegen = livesLastRegen,
-        league = league, leaguePoints = leaguePoints, avatarCatId = avatarCatId, createdAt = createdAt,
-    )
+    override fun deductLives(userId: UUID, amount: Int) {
+        repo.deductLives(userId, amount, OffsetDateTime.now())
+    }
+
+    override fun regenLivesIfReady(userId: UUID) {
+        val cutoff = OffsetDateTime.now().minus(12, ChronoUnit.HOURS)
+        repo.regenLives(userId, cutoff)
+    }
+
+    override fun recoverLives(userId: UUID) {
+        repo.recoverLives(userId)
+    }
+
+    private fun UserEntity.toDomain(): User {
+        val today = LocalDate.now(ZoneOffset.UTC)
+        return User(
+            id = id, username = username, email = email, level = level, xp = xp,
+            nekocoins = nekocoins, gems = gems, lives = lives, livesLastRegen = livesLastRegen,
+            league = league, leaguePoints = leaguePoints, avatarCatId = avatarCatId, createdAt = createdAt,
+            dailyLoginClaimed = lastDailyLoginReward?.toLocalDate() == today,
+            dailyWinClaimed   = lastDailyWinReward?.toLocalDate() == today,
+        )
+    }
 }

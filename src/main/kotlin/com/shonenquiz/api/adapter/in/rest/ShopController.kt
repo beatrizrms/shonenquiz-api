@@ -41,8 +41,8 @@ class ShopController(private val shopUseCase: ShopUseCase) {
                 name = set.name,
                 description = set.description,
                 emoji = set.emoji,
-                priceCoins = set.priceCoins,
-                priceGems = set.priceGems,
+                price = set.price,
+                unity = set.unity,
                 accessories = setAccessories.map { it.toResponse() },
                 ownedCount = ownedCount,
                 totalCount = setAccessories.size,
@@ -54,6 +54,7 @@ class ShopController(private val shopUseCase: ShopUseCase) {
                 abilityEmoji = abilityItem?.emoji,
                 abilityCategory = abilityItem?.abilityCategory,
                 abilityCooldown = abilityItem?.cooldownQuestions ?: 3,
+                rarity = set.rarity,
             )
         }
         return ResponseEntity.ok(response)
@@ -94,7 +95,7 @@ class ShopController(private val shopUseCase: ShopUseCase) {
     private fun ShopItem.toResponse() = ShopItemResponse(
         id = id, name = name, description = description, category = category,
         itemRef = itemRef, setRef = setRef, emoji = emoji,
-        priceCoins = priceCoins, priceGems = priceGems, priceBrl = priceBrl,
+        price = price, unity = unity, priceBrl = priceBrl,
         isRotating = isRotating, availableUntil = availableUntil, sortOrder = sortOrder,
     )
 }

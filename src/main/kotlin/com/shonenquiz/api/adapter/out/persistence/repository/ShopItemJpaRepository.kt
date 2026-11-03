@@ -9,4 +9,5 @@ interface ShopItemJpaRepository : JpaRepository<ShopItemEntity, UUID> {
     fun findByCategoryAndActiveTrue(category: String): List<ShopItemEntity>
     fun findByIsRotatingTrueAndActiveTrue(): List<ShopItemEntity>
     fun findByItemRef(itemRef: String): ShopItemEntity?
+    fun findBySetRefAndCategoryAndActiveTrue(setRef: String, category: String): List<ShopItemEntity>
 }

@@ -45,26 +45,45 @@ class ShopService(
 
         when (command.currency) {
             "coins" -> {
-                val price = item.priceCoins ?: throw BusinessException("Este item não pode ser comprado com Kōka")
+                if (item.unity != "coin") throw BusinessException("Este item não pode ser comprado com Kōka")
+                val price = item.price!!
                 userPort.deductCoins(command.userId, price)
                 shopPort.createOrder(command.userId, item.id, "coins", price)
             }
             "gems" -> {
-                val price = item.priceGems ?: throw BusinessException("Este item não pode ser comprado com Gemas")
+                if (item.unity != "gem") throw BusinessException("Este item não pode ser comprado com Gemas")
+                val price = item.price!!
                 userPort.deductGems(command.userId, price)
                 shopPort.createOrder(command.userId, item.id, "gems", price)
             }
             else -> throw BusinessException("Moeda inválida: ${command.currency}")
         }
 
+        val now = OffsetDateTime.now()
         val owned = UserOwnedItem(
             userId = command.userId,
             itemRef = command.itemRef,
             source = "shop",
-            acquiredAt = OffsetDateTime.now(),
+            acquiredAt = now,
         )
         try {
-            return shopPort.saveOwned(owned)
+            val result = shopPort.saveOwned(owned)
+
+            // Ao comprar um ability_set, concede todos os acessórios do set automaticamente
+            if (item.category == "ability_set") {
+                shopPort.findAccessoriesBySetRef(item.itemRef).forEach { accessory ->
+                    if (!shopPort.isOwned(command.userId, accessory.itemRef)) {
+                        shopPort.saveOwned(UserOwnedItem(
+                            userId = command.userId,
+                            itemRef = accessory.itemRef,
+                            source = "shop",
+                            acquiredAt = now,
+                        ))
+                    }
+                }
+            }
+
+            return result
         } catch (e: DataIntegrityViolationException) {
             throw BusinessException("Você já possui este item")
         }

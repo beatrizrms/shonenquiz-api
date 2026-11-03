@@ -30,6 +30,9 @@ class ShopPersistenceAdapter(
     override fun findByItemRef(itemRef: String): ShopItem? =
         shopItemRepo.findByItemRef(itemRef)?.toDomain()
 
+    override fun findAccessoriesBySetRef(setRef: String): List<ShopItem> =
+        shopItemRepo.findBySetRefAndCategoryAndActiveTrue(setRef, "accessory").map { it.toDomain() }
+
     override fun findOwnedByUser(userId: UUID): List<UserOwnedItem> =
         ownedRepo.findByIdUserId(userId).map { it.toDomain() }
 
@@ -53,11 +56,12 @@ class ShopPersistenceAdapter(
     private fun ShopItemEntity.toDomain() = ShopItem(
         id = id, name = name, description = description, category = category,
         itemRef = itemRef, setRef = setRef, emoji = emoji,
-        priceCoins = priceCoins, priceGems = priceGems, priceBrl = priceBrl,
+        price = price, unity = unity, priceBrl = priceBrl,
         rewardCoins = rewardCoins, rewardGems = rewardGems,
         isRotating = isRotating, availableFrom = availableFrom, availableUntil = availableUntil,
         active = active, sortOrder = sortOrder, abilityItemId = abilityItemId,
         abilityCategory = abilityCategory, cooldownQuestions = cooldownQuestions,
+        rarity = rarity,
     )
 
     private fun UserOwnedItemEntity.toDomain() = UserOwnedItem(

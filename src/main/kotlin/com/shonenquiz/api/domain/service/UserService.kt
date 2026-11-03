@@ -1,11 +1,14 @@
 package com.shonenquiz.api.domain.service
 
+import com.shonenquiz.api.adapter.`in`.rest.dto.AchievementResponse
 import com.shonenquiz.api.adapter.out.persistence.repository.GameSessionJpaRepository
+import com.shonenquiz.api.adapter.out.persistence.repository.UserJpaRepository
 import com.shonenquiz.api.domain.model.Anime
 import com.shonenquiz.api.domain.model.CatAvatar
 import com.shonenquiz.api.domain.model.RecentSession
 import com.shonenquiz.api.domain.model.User
 import com.shonenquiz.api.domain.model.UserStats
+import com.shonenquiz.api.domain.port.`in`.DailyLoginResult
 import com.shonenquiz.api.domain.port.`in`.SaveAvatarCommand
 import com.shonenquiz.api.domain.port.`in`.UserUseCase
 import com.shonenquiz.api.domain.port.out.AbilitySlot
@@ -19,6 +22,9 @@ import com.shonenquiz.api.exception.BusinessException
 import com.shonenquiz.api.exception.ResourceNotFoundException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDate
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 
 @Service
@@ -30,10 +36,25 @@ class UserService(
     private val shopPort: ShopPort,
     private val abilitySlotPort: AbilitySlotPort,
     private val sessionRepo: GameSessionJpaRepository,
+    private val userRepo: UserJpaRepository,
+    private val achievementService: AchievementService,
 ) : UserUseCase {
 
     override fun getProfile(userId: UUID): User =
         userPort.findById(userId) ?: throw ResourceNotFoundException("Usuário não encontrado")
+
+    @Transactional
+    override fun claimDailyLoginReward(userId: UUID): DailyLoginResult {
+        val user = userRepo.findById(userId).orElseThrow { ResourceNotFoundException("Usuário não encontrado") }
+        val today = LocalDate.now(ZoneOffset.UTC)
+        val lastClaim = user.lastDailyLoginReward?.toLocalDate()
+        if (lastClaim == today) return DailyLoginResult(claimed = false, nekocoinsClaimed = 0)
+        val reward = 100
+        user.nekocoins += reward
+        user.lastDailyLoginReward = OffsetDateTime.now(ZoneOffset.UTC)
+        userRepo.save(user)
+        return DailyLoginResult(claimed = true, nekocoinsClaimed = reward)
+    }
 
     override fun getStats(userId: UUID): UserStats {
         val total = sessionRepo.countFinished(userId)
@@ -102,6 +123,9 @@ class UserService(
         }
         animePort.replacePreferences(userId, animeIds.distinct())
     }
+
+    override fun getAchievements(userId: UUID): List<AchievementResponse> =
+        achievementService.unlockEarned(userId)
 
     override fun getEquippedItems(userId: UUID): List<String> =
         equipmentPort.findEquipped(userId)
