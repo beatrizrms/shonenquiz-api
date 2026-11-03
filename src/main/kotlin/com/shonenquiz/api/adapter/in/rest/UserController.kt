@@ -1,12 +1,15 @@
 package com.shonenquiz.api.adapter.`in`.rest
 
 import com.shonenquiz.api.adapter.`in`.rest.dto.*
+import com.shonenquiz.api.adapter.out.persistence.repository.LevelThresholdJpaRepository
 import com.shonenquiz.api.domain.model.Anime
 import com.shonenquiz.api.domain.model.CatAvatar
 import com.shonenquiz.api.domain.model.User
 import com.shonenquiz.api.domain.port.`in`.SaveAvatarCommand
 import com.shonenquiz.api.domain.port.`in`.UserUseCase
 import com.shonenquiz.api.domain.port.out.AbilitySlot
+import com.shonenquiz.api.domain.service.LivesService
+import com.shonenquiz.api.adapter.`in`.rest.dto.DailyLoginResponse
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -15,11 +18,16 @@ import java.util.UUID
 
 @RestController
 @RequestMapping("/users/me")
-class UserController(private val userUseCase: UserUseCase) {
+class UserController(
+    private val userUseCase: UserUseCase,
+    private val levelThresholdRepo: LevelThresholdJpaRepository,
+    private val livesService: LivesService,
+) {
 
     @GetMapping
     fun getProfile(@AuthenticationPrincipal userId: UUID?): ResponseEntity<UserProfileResponse> {
         if (userId == null) return ResponseEntity.status(401).build()
+        livesService.regenIfReady(userId)
         return ResponseEntity.ok(userUseCase.getProfile(userId).toResponse())
     }
 
@@ -98,6 +106,12 @@ class UserController(private val userUseCase: UserUseCase) {
         })
     }
 
+    @GetMapping("/achievements")
+    fun getAchievements(@AuthenticationPrincipal userId: UUID?): ResponseEntity<List<AchievementResponse>> {
+        if (userId == null) return ResponseEntity.status(401).build()
+        return ResponseEntity.ok(userUseCase.getAchievements(userId))
+    }
+
     @GetMapping("/equipment")
     fun getEquipment(@AuthenticationPrincipal userId: UUID?): ResponseEntity<List<String>> {
         if (userId == null) return ResponseEntity.status(401).build()
@@ -151,11 +165,18 @@ class UserController(private val userUseCase: UserUseCase) {
         return ResponseEntity.noContent().build()
     }
 
-    private fun User.toResponse() = UserProfileResponse(
-        id = id, username = username, email = email, level = level, xp = xp,
-        nekocoins = nekocoins, gems = gems, lives = lives, livesLastRegen = livesLastRegen,
-        league = league, leaguePoints = leaguePoints, avatarCatId = avatarCatId, createdAt = createdAt,
-    )
+    private fun User.toResponse(): UserProfileResponse {
+        val nextXp = levelThresholdRepo.findById((level + 1).toShort())
+            .map { it.minXp }
+            .orElse(xp) // nível máximo: retorna o próprio XP (barra cheia)
+        return UserProfileResponse(
+            id = id, username = username, email = email, level = level, xp = xp,
+            xpToNextLevel = nextXp,
+            nekocoins = nekocoins, gems = gems, lives = lives, livesLastRegen = livesLastRegen,
+            league = league, leaguePoints = leaguePoints, avatarCatId = avatarCatId, createdAt = createdAt,
+            dailyLoginClaimed = dailyLoginClaimed, dailyWinClaimed = dailyWinClaimed,
+        )
+    }
 
     private fun CatAvatar.toResponse() = AvatarResponse(
         id = id, catName = catName, breed = breed, eyeColor = eyeColor,
@@ -166,6 +187,20 @@ class UserController(private val userUseCase: UserUseCase) {
         id = id, name = name, slug = slug, category = category,
         isFixed = isFixed, coverUrl = coverUrl,
     )
+
+    @PostMapping("/lives/recover")
+    fun recoverLives(@AuthenticationPrincipal userId: UUID?): ResponseEntity<Void> {
+        if (userId == null) return ResponseEntity.status(401).build()
+        livesService.recoverLives(userId)
+        return ResponseEntity.noContent().build()
+    }
+
+    @PostMapping("/daily-login")
+    fun dailyLogin(@AuthenticationPrincipal userId: UUID?): ResponseEntity<DailyLoginResponse> {
+        val id = userId ?: return ResponseEntity.status(401).build()
+        val result = userUseCase.claimDailyLoginReward(id)
+        return ResponseEntity.ok(DailyLoginResponse(claimed = result.claimed, nekocoinsClaimed = result.nekocoinsClaimed))
+    }
 
     private fun AbilitySlot.toResponse() = AbilitySlotResponse(
         slotIndex = slotIndex, setRef = setRef, unlocked = unlocked,

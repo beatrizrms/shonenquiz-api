@@ -12,8 +12,8 @@ data class ShopItemResponse(
     val itemRef: String,
     val setRef: String?,
     val emoji: String?,
-    val priceCoins: Int?,
-    val priceGems: Int?,
+    val price: Int?,
+    val unity: String?,          // coin | gem
     val priceBrl: BigDecimal?,
     val isRotating: Boolean,
     val availableUntil: OffsetDateTime?,
@@ -25,8 +25,8 @@ data class AbilitySetResponse(
     val name: String,
     val description: String?,
     val emoji: String?,
-    val priceCoins: Int?,
-    val priceGems: Int?,
+    val price: Int?,
+    val unity: String?,          // gem (sets são sempre gems)
     val accessories: List<ShopItemResponse>,
     val ownedCount: Int,
     val totalCount: Int,
@@ -36,6 +36,7 @@ data class AbilitySetResponse(
     val abilityEmoji: String?,      // emoji da habilidade (do item ability)
     val abilityCategory: String?,   // time | hint | question
     val abilityCooldown: Int,       // perguntas até reativar
+    val rarity: String?,            // comum | raro | epico | lendario
 )
 
 data class OwnedItemResponse(

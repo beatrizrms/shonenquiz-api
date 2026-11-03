@@ -7,7 +7,10 @@ import com.shonenquiz.api.adapter.out.persistence.entity.GameSessionEntity
 import com.shonenquiz.api.adapter.out.persistence.entity.QuestionEntity
 import com.shonenquiz.api.adapter.out.persistence.entity.SessionAchievementEntity
 import com.shonenquiz.api.adapter.out.persistence.entity.SessionAnswerEntity
+import com.shonenquiz.api.adapter.out.persistence.entity.UserDailyChallengeCompletionEntity
+import com.shonenquiz.api.adapter.out.persistence.entity.UserDailyChallengeId
 import com.shonenquiz.api.adapter.out.persistence.repository.BossPowerJpaRepository
+import com.shonenquiz.api.adapter.out.persistence.repository.DailyChallengeJpaRepository
 import com.shonenquiz.api.adapter.out.persistence.repository.FeatureToggleJpaRepository
 import com.shonenquiz.api.adapter.out.persistence.repository.GameModeConfigJpaRepository
 import com.shonenquiz.api.adapter.out.persistence.repository.GameRuleJpaRepository
@@ -16,12 +19,15 @@ import com.shonenquiz.api.adapter.out.persistence.repository.LevelThresholdJpaRe
 import com.shonenquiz.api.adapter.out.persistence.repository.QuestionJpaRepository
 import com.shonenquiz.api.adapter.out.persistence.repository.SessionAchievementJpaRepository
 import com.shonenquiz.api.adapter.out.persistence.repository.SessionAnswerJpaRepository
+import com.shonenquiz.api.adapter.out.persistence.repository.UserDailyChallengeCompletionJpaRepository
 import com.shonenquiz.api.adapter.out.persistence.repository.UserJpaRepository
 import com.shonenquiz.api.domain.model.*
 import com.shonenquiz.api.domain.port.`in`.GameUseCase
+import com.shonenquiz.api.domain.port.out.AbilitySlotPort
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.util.UUID
 
@@ -37,6 +43,11 @@ class GameService(
     private val levelThresholdRepo: LevelThresholdJpaRepository,
     private val bossPowerRepo: BossPowerJpaRepository,
     private val featureToggleRepo: FeatureToggleJpaRepository,
+    private val abilitySlotPort: AbilitySlotPort,
+    private val livesService: LivesService,
+    private val achievementService: AchievementService,
+    private val dailyChallengeRepo: DailyChallengeJpaRepository,
+    private val dailyCompletionRepo: UserDailyChallengeCompletionJpaRepository,
 ) : GameUseCase {
 
     companion object {
@@ -50,6 +61,9 @@ class GameService(
 
         val COIN_STAGES_PERCENT = listOf(0, 2, 4, 6, 9, 13, 18, 24, 31, 39, 48, 58, 69, 80, 90, 100)
         val SAFE_ZONE_STAGES = setOf(5, 10)
+
+        // Slot 0 desbloqueado no cadastro; slots 1-3 desbloqueiam ao atingir estes níveis
+        private val SLOT_UNLOCK_LEVELS = mapOf(4 to 1, 6 to 2, 8 to 3)
         val SHIELD_HELP_TYPES = setOf("haki", "izanagi", "full_counter")
 
         // Pesos de raridade para sorteio de boss (raro > epico > lendario)
@@ -83,36 +97,79 @@ class GameService(
 
     @Transactional
     override fun startSession(userId: UUID, mode: String): StartSessionResult {
+        // Modo daily: validar e registrar tentativa
+        val dailyChallenge = if (mode == "daily") {
+            val challenge = todayChallenge()
+            val today = LocalDate.now()
+            val existing = dailyCompletionRepo.findByIdUserIdAndIdChallengeDate(userId, today)
+            if (existing != null) throw com.shonenquiz.api.exception.BusinessException("Desafio diário já utilizado hoje")
+            challenge
+        } else null
+
+        // Modos não-daily: checar vidas do usuário
+        if (mode != "daily") {
+            livesService.regenIfReady(userId)
+            val user = userRepo.findById(userId).orElseThrow { IllegalArgumentException("User not found") }
+            if (user.lives <= 0) throw com.shonenquiz.api.exception.BusinessException("Sem vidas disponíveis")
+        }
+
         val user = userRepo.findById(userId).orElseThrow { IllegalArgumentException("User not found") }
         val modeConfig = modeConfigRepo.findByModeAndActiveTrue(mode)
 
-        val total = modeConfig?.questionsTotal ?: QUESTIONS_PER_SESSION
-        val picked = pickQuestionsStructured(userId, total)
-        require(picked.questions.isNotEmpty()) { "No questions available for user" }
+        // Parâmetros da sessão — diário sobrescreve modo
+        val total = dailyChallenge?.questionsCount ?: modeConfig?.questionsTotal ?: QUESTIONS_PER_SESSION
+        val timerSecs = dailyChallenge?.timerSeconds ?: modeConfig?.timerSeconds ?: 30
+        val sessionLives = if (mode == "daily") {
+            dailyChallenge!!.livesCount
+        } else {
+            minOf(modeConfig?.lives ?: LIVES_PER_SESSION, user.lives.toInt())
+        }
 
-        // Identifica quais questões são boss (última de cada grupo de dificuldade, exceto impossible)
-        val bossMap = assignBosses(picked.questions, picked.groupCounts, mode)
-
-        // Se algum boss tem extra_hard_question, troca a pergunta daquele slot por uma impossible
-        val finalQuestions = applyExtraHardBosses(picked.questions, bossMap, userId, picked.impossiblePool)
+        // Seleção de perguntas + bosses
+        val finalQuestions: List<QuestionEntity>
+        val bossMap: Map<UUID, BossPowerEntity>
+        if (dailyChallenge != null) {
+            finalQuestions = pickQuestionsForDaily(userId, dailyChallenge, total)
+            bossMap = emptyMap()
+        } else {
+            val picked = pickQuestionsStructured(userId, total)
+            require(picked.questions.isNotEmpty()) { "No questions available for user" }
+            val rawBossMap = assignBosses(picked.questions, picked.groupCounts, mode)
+            finalQuestions = applyExtraHardBosses(picked.questions, rawBossMap, userId, picked.impossiblePool)
+            bossMap = rawBossMap
+        }
+        require(finalQuestions.isNotEmpty()) { "No questions available for this challenge" }
 
         val session = GameSessionEntity(
             userId = userId,
             mode = mode,
             league = user.league,
             questionsTotal = finalQuestions.size,
-            maxLives = modeConfig?.lives ?: LIVES_PER_SESSION,
+            maxLives = sessionLives,
             questionIds = finalQuestions.joinToString(",") { it.id.toString() },
             bossAssignments = encodeBossAssignments(bossMap),
         )
         sessionRepo.save(session)
 
+        // Registra tentativa do desafio diário imediatamente
+        if (dailyChallenge != null) {
+            dailyCompletionRepo.save(
+                UserDailyChallengeCompletionEntity(
+                    id = UserDailyChallengeId(userId = userId, challengeDate = LocalDate.now()),
+                    challengeId = dailyChallenge.id,
+                    sessionId = session.id,
+                    status = "failed",  // será atualizado para "completed" se vencer
+                )
+            )
+        }
+
         return StartSessionResult(
             sessionId = session.id,
             firstQuestion = finalQuestions.first().toDomain(),
             questionsTotal = session.questionsTotal,
-            timerSeconds = modeConfig?.timerSeconds ?: 30,
-            lives = modeConfig?.lives ?: LIVES_PER_SESSION,
+            timerSeconds = timerSecs,
+            lives = sessionLives,
+            sessionTimerSeconds = modeConfig?.sessionTimerSeconds,
         )
     }
 
@@ -136,6 +193,7 @@ class GameService(
         selectedOptionId: UUID,
         timeTakenMs: Long,
         helpUsed: String?,
+        selectedOrder: List<UUID>?,
     ): AnswerResult {
         require(timeTakenMs >= ANTI_CHEAT_MIN_MS) { "Response too fast" }
 
@@ -150,18 +208,30 @@ class GameService(
             .orElseThrow { IllegalArgumentException("Question not found") }
         val selectedOption = question.options.firstOrNull { it.id == selectedOptionId }
             ?: throw IllegalArgumentException("Option not found")
-        val correctOption = question.options.first { it.isCorrect }
 
         // ── boss da pergunta atual ───────────────────────────────────────────
         val bossMap = parseBossAssignments(session.bossAssignments)
         val currentBossPowerId = bossMap[questionId]
         val currentBoss = currentBossPowerId?.let { bossPowerRepo.findById(it).orElse(null) }
 
-        // wrong_answer: inverte o resultado — acertar é errar, errar é acertar
-        val isCorrect = if (currentBoss?.effectType == "wrong_answer")
-            !selectedOption.isCorrect
+        // Para chronological: valida a ordem enviada vs sort_order correto
+        val isCorrect = when {
+            question.type == "chronological" -> {
+                if (selectedOrder.isNullOrEmpty()) false
+                else {
+                    val correctOrder = question.options.sortedBy { it.sortOrder }.map { it.id }
+                    selectedOrder == correctOrder
+                }
+            }
+            currentBoss?.effectType == "wrong_answer" -> !selectedOption.isCorrect
+            else -> selectedOption.isCorrect
+        }
+
+        // correctOption: para chronological, retorna o primeiro da ordem correta
+        val correctOption = if (question.type == "chronological")
+            question.options.minByOrNull { it.sortOrder }!!
         else
-            selectedOption.isCorrect
+            question.options.first { it.isCorrect }
 
         val modeConfig = modeConfigRepo.findByModeAndActiveTrue(session.mode)
 
@@ -205,15 +275,46 @@ class GameService(
         val livesRemaining = session.maxLives + session.bonusLives - session.livesUsed
         val allAnswered = session.questionsAnswered >= session.questionsTotal
         val outOfLives = livesRemaining <= 0
+        var dailyWinGemEarned = false
 
         if (allAnswered || outOfLives) {
             session.status = if (outOfLives) "lost" else "won"
             session.finishedAt = OffsetDateTime.now()
             evaluateFinalRules(session, rules)
+
+            // Desafio diário: require_combo — só vence se alcançou o combo mínimo
+            if (session.mode == "daily" && session.status == "won") {
+                val challenge = todayChallenge()
+                val minCombo = challenge.requireCombo
+                if (minCombo != null && session.maxCombo < minCombo) {
+                    session.status = "lost"
+                }
+            }
+
             val (xp, coins) = calculateRewards(session)
             session.xpEarned = xp
             session.nekocoinsEarned = coins
-            applyRewardsToUser(userId, xp, coins)
+            val (leveledUp, newLevel) = applyRewardsToUser(userId, xp, coins)
+            session.leveledUp = leveledUp
+            session.newLevel = newLevel
+            // Daily: vidas isoladas — não desconta do usuário
+            if (session.mode != "daily" && session.livesUsed > 0) livesService.deductLives(userId, session.livesUsed)
+            if (session.status == "won") dailyWinGemEarned = applyDailyWinReward(userId)
+            achievementService.unlockEarned(userId)
+
+            // Desafio diário: atualizar completion
+            if (session.mode == "daily") {
+                val completion = dailyCompletionRepo.findByIdUserIdAndIdChallengeDate(userId, LocalDate.now())
+                if (completion != null) {
+                    completion.status = if (session.status == "won") "completed" else "failed"
+                    dailyCompletionRepo.save(completion)
+                }
+                // Recompensa em nekocoins se venceu
+                if (session.status == "won") {
+                    val challenge = todayChallenge()
+                    userRepo.addCoins(userId, challenge.rewardCoins)
+                }
+            }
         }
 
         sessionRepo.save(session)
@@ -225,6 +326,8 @@ class GameService(
             isCorrect = isCorrect,
             timeTakenMs = timeTakenMs,
             pointsEarned = points,
+            helpUsed = helpUsed,
+            selectedOrder = selectedOrder?.joinToString(","),
         ))
 
         val nextQuestion = if (session.status == "active") getNextQuestion(userId, sessionId) else null
@@ -255,6 +358,7 @@ class GameService(
             coinStage = session.coinStage,
             upcomingBoss = upcomingBoss,
             activeBossEffect = activeBossEffect,
+            dailyWinGemEarned = dailyWinGemEarned,
         )
     }
 
@@ -263,6 +367,12 @@ class GameService(
         val session = sessionRepo.findByIdAndUserId(sessionId, userId)
             ?: throw IllegalArgumentException("Session not found")
         require(session.status == "active") { "Session is not active" }
+
+        // Desafio diário sem ajudas: rejeitar
+        if (session.mode == "daily") {
+            val challenge = todayChallenge()
+            if (challenge.noHelps) throw com.shonenquiz.api.exception.BusinessException("Ajudas não permitidas neste desafio")
+        }
 
         val question = questionRepo.findById(questionId)
             .orElseThrow { IllegalArgumentException("Question not found") }
@@ -357,9 +467,65 @@ class GameService(
         val session = sessionRepo.findByIdAndUserId(sessionId, userId)
             ?: throw IllegalArgumentException("Session not found")
         if (session.status != "active") return
-        session.status = "abandoned"
+        session.status = if (session.mode == "daily") "lost" else "abandoned"
         session.finishedAt = OffsetDateTime.now()
         sessionRepo.save(session)
+        // Daily: tentativa já registrada como failed ao iniciar — não precisa atualizar
+    }
+
+    @Transactional
+    override fun finishSession(userId: UUID, sessionId: UUID): SessionSummary {
+        val session = sessionRepo.findByIdAndUserId(sessionId, userId)
+            ?: throw IllegalArgumentException("Session not found")
+        if (session.status != "active") return getSessionSummary(userId, sessionId)
+
+        session.status = if (session.correctCount > 0) "won" else "lost"
+        session.finishedAt = OffsetDateTime.now()
+
+        val rules = ruleRepo.findActiveByMode(session.mode)
+        evaluateFinalRules(session, rules)
+        val (xp, coins) = calculateRewards(session)
+        session.xpEarned = xp
+        session.nekocoinsEarned = coins
+        val (leveledUp, newLevel) = applyRewardsToUser(userId, xp, coins)
+        session.leveledUp = leveledUp
+        session.newLevel = newLevel
+        if (session.livesUsed > 0) livesService.deductLives(userId, session.livesUsed)
+        if (session.status == "won") applyDailyWinReward(userId)
+        achievementService.unlockEarned(userId)
+
+        sessionRepo.save(session)
+        return getSessionSummary(userId, sessionId)
+    }
+
+    override fun getDailyChallenge(userId: UUID): DailyChallengeStatus {
+        val today = LocalDate.now()
+        val challenges = dailyChallengeRepo.findAllByActiveTrueOrderBySortOrder()
+        require(challenges.isNotEmpty()) { "No daily challenges configured" }
+        val dayIndex = (today.dayOfYear - 1) % challenges.size
+        val challenge = challenges[dayIndex]
+
+        val completion = dailyCompletionRepo.findByIdUserIdAndIdChallengeDate(userId, today)
+        return DailyChallengeStatus(
+            challengeId = challenge.id,
+            name = challenge.name,
+            description = challenge.description,
+            questionsCount = challenge.questionsCount,
+            livesCount = challenge.livesCount,
+            noHelps = challenge.noHelps,
+            difficultyFilter = challenge.difficultyFilter,
+            singleAnime = challenge.singleAnime,
+            timerSeconds = challenge.timerSeconds,
+            requireCombo = challenge.requireCombo,
+            rewardCoins = challenge.rewardCoins,
+            attempted = completion != null,
+            completed = completion?.status == "completed",
+        )
+    }
+
+    private fun todayChallenge() = dailyChallengeRepo.findAllByActiveTrueOrderBySortOrder().let { list ->
+        require(list.isNotEmpty()) { "No daily challenges configured" }
+        list[(LocalDate.now().dayOfYear - 1) % list.size]
     }
 
     override fun getSessionSummary(userId: UUID, sessionId: UUID): SessionSummary {
@@ -378,6 +544,7 @@ class GameService(
                 questionNumber = a.questionNumber,
             )
         }
+        val oldLevel = if (session.leveledUp) session.newLevel - 1 else session.newLevel.toInt()
         return SessionSummary(
             sessionId = session.id,
             status = session.status,
@@ -388,7 +555,43 @@ class GameService(
             xpEarned = session.xpEarned,
             nekocoinsEarned = session.nekocoinsEarned,
             achievements = achievements,
+            leveledUp = session.leveledUp,
+            oldLevel = oldLevel,
+            newLevel = session.newLevel.toInt(),
         )
+    }
+
+    // ── Daily challenge question picker ──────────────────────────────────────
+
+    private fun pickQuestionsForDaily(
+        userId: UUID,
+        challenge: com.shonenquiz.api.adapter.out.persistence.entity.DailyChallengeEntity,
+        count: Int,
+    ): List<QuestionEntity> {
+        val pageable = PageRequest.of(0, count)
+
+        val ids: List<UUID> = when {
+            challenge.singleAnime -> {
+                val animeId = dailyCompletionRepo.findRandomAnimeIdByUserId(userId, PageRequest.of(0, 1))
+                    .firstOrNull() ?: return emptyList()
+                when (challenge.difficultyFilter) {
+                    "hard", "impossible" ->
+                        questionRepo.findRandomIdsByDifficultyAndAnime(animeId, challenge.difficultyFilter, pageable)
+                    else ->
+                        questionRepo.findRandomIdsByAnime(animeId, pageable)
+                }
+            }
+            challenge.difficultyFilter == "all" ->
+                questionRepo.findRandomIdsByDifficulty(userId, "easy", PageRequest.of(0, count / 2))
+                    .plus(questionRepo.findRandomIdsByDifficulty(userId, "medium", PageRequest.of(0, count / 2)))
+                    .plus(questionRepo.findRandomIdsByDifficulty(userId, "hard", PageRequest.of(0, count)))
+                    .distinct().take(count)
+            else ->
+                questionRepo.findRandomIdsByDifficulty(userId, challenge.difficultyFilter, pageable)
+        }
+
+        if (ids.isEmpty()) return emptyList()
+        return questionRepo.findWithDetailsByIds(ids).shuffled().take(count)
     }
 
     // ── Boss helpers ──────────────────────────────────────────────────────────
@@ -408,16 +611,18 @@ class GameService(
 
         val excludedIds: Set<UUID> = if (isToggleEnabled("no_repeat_questions")) {
             val recentSessions = sessionRepo.findTop5ByUserIdAndStatusInOrderByStartedAtDesc(
-                userId, listOf("won")
+                userId, listOf("won", "lost", "abandoned")
             )
-            recentSessions.flatMap { s -> answerRepo.findBySessionId(s.id).map { it.questionId } }.toSet()
+            recentSessions.flatMap { s -> answerRepo.findBySessionId(s.id).filter { it.isCorrect }.map { it.questionId } }.toSet()
         } else emptySet()
 
         fun fetchByDiff(diff: String, count: Int): List<QuestionEntity> {
-            val ids = if (excludedIds.isEmpty())
+            var ids = if (excludedIds.isEmpty())
                 questionRepo.findRandomIdsByDifficulty(userId, diff, PageRequest.of(0, count))
             else
                 questionRepo.findRandomIdsByDifficultyExcluding(userId, diff, excludedIds, PageRequest.of(0, count))
+            // Fallback: se o usuário não tem preferências ou elas não têm perguntas, busca de qualquer anime
+            if (ids.isEmpty()) ids = questionRepo.findRandomIdsByDifficultyAny(diff, PageRequest.of(0, count))
             return if (ids.isEmpty()) emptyList() else questionRepo.findWithDetailsByIds(ids)
         }
 
@@ -610,14 +815,31 @@ class GameService(
         return xp to coins
     }
 
-    private fun applyRewardsToUser(userId: UUID, xp: Int, coins: Int) {
-        val user = userRepo.findById(userId).orElse(null) ?: return
+    private fun applyDailyWinReward(userId: UUID): Boolean {
+        val user = userRepo.findById(userId).orElse(null) ?: return false
+        val today = java.time.LocalDate.now(java.time.ZoneOffset.UTC)
+        if (user.lastDailyWinReward?.toLocalDate() == today) return false
+        user.gems += 1
+        user.lastDailyWinReward = java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC)
+        userRepo.save(user)
+        return true
+    }
+
+    private fun applyRewardsToUser(userId: UUID, xp: Int, coins: Int): Pair<Boolean, Short> {
+        val user = userRepo.findById(userId).orElse(null) ?: return false to 1.toShort()
+        val oldLevel = user.level
         user.xp += xp
         user.nekocoins += coins
         val newLevel = levelThresholdRepo.findFirstByMinXpLessThanEqualOrderByMinXpDesc(user.xp)?.level
             ?: 1.toShort()
-        if (newLevel > user.level) user.level = newLevel
+        if (newLevel > oldLevel) {
+            user.level = newLevel
+            SLOT_UNLOCK_LEVELS
+                .filter { (level, _) -> level <= newLevel.toInt() }
+                .values.forEach { slotIndex -> abilitySlotPort.unlockSlot(userId, slotIndex) }
+        }
         userRepo.save(user)
+        return (newLevel > oldLevel) to newLevel
     }
 
     // ── Rule evaluation ───────────────────────────────────────────────────────

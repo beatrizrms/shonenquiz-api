@@ -39,6 +39,7 @@ data class StartSessionResponse(
     val timerSeconds: Int,
     val lives: Int,
     val firstQuestion: QuestionResponse,
+    val sessionTimerSeconds: Int? = null,
 )
 
 data class GameModeConfigResponse(
@@ -48,6 +49,7 @@ data class GameModeConfigResponse(
     val questionsTotal: Int,
     val timerSeconds: Int,
     val lives: Int,
+    val sessionTimerSeconds: Int? = null,
 )
 
 data class SubmitAnswerRequest(
@@ -55,6 +57,7 @@ data class SubmitAnswerRequest(
     val selectedOptionId: UUID,
     val timeTakenMs: Long,
     val helpUsed: String? = null,
+    val selectedOrder: List<UUID>? = null,
 )
 
 data class UseHelpRequest(
@@ -90,6 +93,7 @@ data class AnswerResultResponse(
     val nextQuestion: QuestionResponse?,
     val upcomingBoss: BossEncounterResponse? = null,
     val activeBossEffect: String? = null,
+    val dailyWinGemEarned: Boolean = false,
 )
 
 data class SessionAchievementResponse(
@@ -111,4 +115,23 @@ data class SessionSummaryResponse(
     val xpEarned: Int,
     val nekocoinsEarned: Int,
     val achievements: List<SessionAchievementResponse>,
+    val leveledUp: Boolean = false,
+    val oldLevel: Int = 1,
+    val newLevel: Int = 1,
+)
+
+data class DailyChallengeResponse(
+    val challengeId: java.util.UUID,
+    val name: String,
+    val description: String,
+    val questionsCount: Int,
+    val livesCount: Int,
+    val noHelps: Boolean,
+    val difficultyFilter: String,
+    val singleAnime: Boolean,
+    val timerSeconds: Int,
+    val requireCombo: Int?,
+    val rewardCoins: Int,
+    val attempted: Boolean,
+    val completed: Boolean,
 )
